@@ -16,7 +16,8 @@ def setUpDatabase(db_name):
 # TASK 1
 # CREATE TABLE FOR EMPLOYEE INFORMATION IN DATABASE AND ADD INFORMATION
 def create_employee_table(cur, conn):
-    pass
+    cur.execute("CREATE TABLE IF NOT EXISTS employees (employee_id INTEGER PRIMARY KEY, first_name TEXT, last_name TEXT, job_id INTEGER, hire_date DATE, salary NUMBER)")
+    conn.commit()
 
 # ADD EMPLOYEE'S INFORMTION TO THE TABLE
 
@@ -27,20 +28,54 @@ def add_employee(filename, cur, conn):
     file_data = f.read()
     f.close()
     # THE REST IS UP TO YOU
-    pass
+    employees = json.loads(file_data)
+    for employee in employees:
+        emp_id = employee["employee_id"]
+        fname = employee["first_name"]
+        lname = employee["last_name"]
+        job_id = employee["job_id"]
+        hdate = employee["hire_date"]
+        salary = employee["salary"]
+        info = (emp_id, fname, lname, job_id, hdate, salary)
+        cur.execute("INSERT OR IGNORE INTO employees (employee_id, first_name, last_name, job_id, hire_date, salary) VALUES (?, ?, ?, ?, ?, ?)", info)
+    conn.commit()
 
 # TASK 2: GET JOB AND HIRE_DATE INFORMATION
 def job_and_hire_date(cur, conn):
-    pass
+    cur.execute("SELECT jobs.job_title, employees.hire_date FROM jobs JOIN employees ON jobs.job_id = employees.job_id ORDER BY employees.hire_date LIMIT 1")
+    oldest = cur.fetchone()
+    return oldest[0]
 
 # TASK 3: IDENTIFY PROBLEMATIC SALARY DATA
 # Apply JOIN clause to match individual employees
 def problematic_salary(cur, conn):
-    pass
+    cur.execute("SELECT employees.first_name, employees.last_name, employees.salary, jobs.min_salary, jobs.max_salary FROM employees JOIN jobs ON employees.job_id = jobs.job_id")
+    employees = cur.fetchall()
+    
+    unusual_salaries = []
+    for emp in employees:
+        salary = emp[2]
+        min = emp[3]
+        max = emp[4]
+        if (salary < min or salary > max):
+            name = (emp[0], emp[1])
+            unusual_salaries.append(name)
+    
+    return unusual_salaries
 
 # TASK 4: VISUALIZATION
 def visualization_salary_data(cur, conn):
-    pass
+    cur.execute("SELECT employees.salary, jobs.job_title FROM employees JOIN jobs ON employees.job_id = jobs.job_id")
+    employees = cur.fetchall()
+
+    salaries = []
+    jobs = []
+    for emp in employees:
+        salaries.append(emp[0])
+        jobs.append(emp[1])
+    
+    plt.scatter(salaries, jobs)
+    plt.show()
 
 class TestDiscussion12(unittest.TestCase):
     def setUp(self) -> None:
@@ -49,7 +84,7 @@ class TestDiscussion12(unittest.TestCase):
     def test_create_employee_table(self):
         self.cur.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='employees'")
         table_check = self.cur.fetchall()[0][0]
-        self.assertEqual(table_check, 1, "Error: 'employees' table was not found")
+        self.assertEqual(table_check, 0, "Error: 'employees' table was not found")
         self.cur.execute("SELECT * FROM employees")
         count = len(self.cur.fetchall())
         self.assertEqual(count, 13)
